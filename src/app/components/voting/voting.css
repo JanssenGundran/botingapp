@@ -1,0 +1,328 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Orbitron:wght@700;900&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  min-height: 100vh;
+  background: #0a0a0f;
+  color: #e8e8f0;
+  font-family: 'Space Grotesk', sans-serif;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  background-image:
+    radial-gradient(ellipse at 20% 20%, rgba(99, 51, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(0, 210, 255, 0.1) 0%, transparent 50%);
+}
+
+h1 {
+  font-family: 'Orbitron', monospace;
+  font-size: 2.8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #a78bfa, #38bdf8, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  color: #6b7280;
+  font-size: 0.85rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
+  margin-top: -20px;
+}
+
+/* Connect Button */
+.btn-connect {
+  background: linear-gradient(135deg, #6333ff, #38bdf8);
+  border: none;
+  color: white;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 16px 48px;
+  border-radius: 50px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 30px rgba(99, 51, 255, 0.4);
+}
+
+.btn-connect:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 50px rgba(99, 51, 255, 0.7);
+}
+
+.btn-connect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Wallet Info */
+.wallet-info {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px 28px;
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+.address {
+  font-family: monospace;
+  color: #38bdf8;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.warning {
+  color: #f59e0b;
+  font-size: 0.9rem;
+  margin-top: 8px;
+}
+
+/* Status */
+.status {
+  background: rgba(99, 51, 255, 0.1);
+  border: 1px solid rgba(99, 51, 255, 0.3);
+  border-radius: 12px;
+  padding: 14px 24px;
+  color: #a78bfa;
+  font-size: 0.9rem;
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Candidates */
+.candidates {
+  width: 100%;
+  max-width: 600px;
+}
+
+.candidates h2, .results h2 {
+  font-family: 'Orbitron', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.candidate-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+}
+
+.candidate-card:hover {
+  border-color: rgba(99, 51, 255, 0.4);
+  background: rgba(99, 51, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.candidate-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e8e8f0;
+}
+
+.btn-vote {
+  background: transparent;
+  border: 1px solid #6333ff;
+  color: #a78bfa;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 10px 28px;
+  border-radius: 50px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+.btn-vote:hover:not(:disabled) {
+  background: #6333ff;
+  color: white;
+  box-shadow: 0 0 20px rgba(99, 51, 255, 0.5);
+}
+
+.btn-vote:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: #374151;
+  color: #374151;
+}
+
+/* Results */
+.results {
+  width: 100%;
+  max-width: 600px;
+}
+
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.result-name {
+  font-weight: 500;
+  color: #d1d5db;
+}
+
+.result-count {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.9rem;
+  color: #34d399;
+  font-weight: 700;
+}
+
+.timer {
+  text-align: center;
+  font-size: 1.3rem;
+  color: #00e5ff;
+  margin: 16px 0 24px;
+}
+
+.no-session {
+  text-align: center;
+  color: #888;
+  margin: 32px 0;
+  font-size: 1rem;
+}
+
+.result-bar-wrap {
+  flex: 1;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  height: 8px;
+  margin: 0 12px;
+  overflow: hidden;
+}
+
+.result-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #00b4d8, #00e5ff);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.result-name { min-width: 100px; }
+.result-count { min-width: 80px; text-align: right; font-size: 0.85rem; color: #aaa; }
+
+/* History carousel */
+.history-section {
+  margin-top: 48px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 32px;
+}
+
+.history-section h2 {
+  text-align: center;
+  color: #00e5ff;
+  margin-bottom: 20px;
+}
+
+.carousel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.arrow {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+.arrow:hover:not(:disabled) { background: rgba(0,229,255,0.15); }
+
+.history-card {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.session-label { font-weight: 600; color: #00e5ff; }
+.session-date { font-size: 0.8rem; color: #888; }
+
+.history-winner {
+  text-align: center;
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  color: #ffd700;
+}
+
+.history-results { margin-bottom: 12px; }
+
+.carousel-indicator {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 8px;
+}
+
+.session-ended {
+  text-align: center;
+  color: #ffd700;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}

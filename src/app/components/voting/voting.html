@@ -1,0 +1,108 @@
+<div class="container">
+  <h1>Decentralized Voting</h1>
+  <p class="subtitle">Powered by Ethereum Sepolia Testnet</p>
+
+  <!-- Connect Wallet -->
+  <div *ngIf="!isConnected">
+    <button class="btn-connect" (click)="connectWallet()" [disabled]="isLoading">
+      {{ isLoading ? 'Connecting...' : 'Connect MetaMask' }}
+    </button>
+  </div>
+
+  <!-- Status Message -->
+  <div *ngIf="statusMessage" class="status">
+    {{ statusMessage }}
+    <span *ngIf="statusMessage.includes('MetaMask')">
+      <a href="https://metamask.io/download/" target="_blank">Download MetaMask</a>
+    </span>
+  </div>
+
+  <!-- Wallet Info -->
+  <div *ngIf="isConnected" class="wallet-info">
+    <p>Connected: <span class="address">{{ walletAddress }}</span></p>
+    <p *ngIf="!hasToken" class="warning">You do not have a VoteToken (VTK). You cannot vote.</p>
+    <p *ngIf="hasVoted" class="warning">You have already voted this session. Thank you!</p>
+  </div>
+
+  <!-- No active session and no results -->
+  <div *ngIf="isConnected && !sessionActive && candidates.length === 0 && voteCounts.length === 0" class="no-session">
+    <p>No voting session is currently active.</p>
+  </div>
+
+  <!-- Active Session -->
+  <div *ngIf="isConnected && sessionActive">
+    <div class="timer">⏱ Time Remaining: <strong>{{ formatTime(timeRemaining) }}</strong></div>
+
+    <!-- Candidates -->
+    <div class="candidates">
+      <h2>Candidates</h2>
+      <div *ngFor="let candidate of candidates" class="candidate-card">
+        <span class="candidate-name">{{ candidate }}</span>
+        <button
+          class="btn-vote"
+          (click)="vote(candidate)"
+          [disabled]="isLoading || hasVoted || !hasToken">
+          {{ isLoading ? 'Processing...' : 'Vote' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Results -->
+    <div *ngIf="voteCounts.length > 0" class="results">
+      <h2>Live Results</h2>
+      <div *ngFor="let result of voteCounts" class="result-row">
+        <span class="result-name">{{ result.name }}</span>
+        <div class="result-bar-wrap">
+          <div class="result-bar" [style.width.%]="getBarWidth(result.count)"></div>
+        </div>
+        <span class="result-count">{{ result.count }} vote(s)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Final Results (session ended) -->
+  <div *ngIf="isConnected && !sessionActive && voteCounts.length > 0" class="results">
+    <h2>Final Results</h2>
+    <p class="session-ended">⏰ Voting session has ended</p>
+    <div *ngFor="let result of voteCounts" class="result-row">
+      <span class="result-name">{{ result.name }}</span>
+      <div class="result-bar-wrap">
+        <div class="result-bar" [style.width.%]="getBarWidth(result.count)"></div>
+      </div>
+      <span class="result-count">{{ result.count }} vote(s)</span>
+    </div>
+  </div>
+
+  <!-- Session History Carousel -->
+  <div *ngIf="isConnected && sessionHistory.length > 0" class="history-section">
+    <h2>Past Session Results</h2>
+    <div class="carousel">
+      <button class="arrow" (click)="prevHistory()"
+        [disabled]="currentHistoryIndex >= sessionHistory.length - 1">&#8592;</button>
+
+      <div class="history-card" *ngIf="currentSession">
+        <div class="history-header">
+          <span class="session-label">Session #{{ currentSession.sessionId }}</span>
+          <span class="session-date">{{ currentSession.endedAt | date:'medium' }}</span>
+        </div>
+        <div class="history-winner">🏆 Winner: <strong>{{ getWinner(currentSession) }}</strong></div>
+        <div class="history-results">
+          <div *ngFor="let c of currentSession.candidates; let i = index" class="result-row">
+            <span class="result-name">{{ c }}</span>
+            <div class="result-bar-wrap">
+              <div class="result-bar"
+                [style.width.%]="getHistoryBarWidth(currentSession, i)"></div>
+            </div>
+            <span class="result-count">{{ currentSession.counts[i] }} vote(s)</span>
+          </div>
+        </div>
+        <div class="carousel-indicator">
+          {{ currentHistoryIndex + 1 }} / {{ sessionHistory.length }}
+        </div>
+      </div>
+
+      <button class="arrow" (click)="nextHistory()"
+        [disabled]="currentHistoryIndex <= 0">&#8594;</button>
+    </div>
+  </div>
+</div>
