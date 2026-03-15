@@ -54,13 +54,6 @@ export class VotingComponent implements OnInit, OnDestroy {
       this.isLoading = false;
       this.cdr.detectChanges();
     }
-
-    this.activeSessions = await this.blockchain.getActiveSessions();
-console.log('activeSessions:', JSON.stringify(this.activeSessions));
-
-this.sessionHistory = await this.blockchain.getSessionHistory();
-console.log('sessionHistory:', JSON.stringify(this.sessionHistory));
-console.log('sessionHistory length:', this.sessionHistory.length);
   }
 
   initSelections() {

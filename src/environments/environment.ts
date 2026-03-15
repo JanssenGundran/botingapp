@@ -1,5 +1,5 @@
 export const environment = {
-  voteTokenAddress: '0x1AD470c990a1ac1Bb8720c1F51CD00228aFe3759',
+  voteTokenAddress: '0x5170a7D482f94964FbFCEDE7ba1b46078d40382d',
   votingAddress: '0x8bF4481133B0fDF06A5e618Cc89967E79067Eb62',
   voteTokenABI: [
     {"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},

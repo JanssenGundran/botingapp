@@ -77,8 +77,14 @@ export class AdminComponent implements OnInit, OnDestroy {
       for (const session of this.activeSessions) {
         if (session.timeRemaining > 0) {
           session.timeRemaining--;
-        } else {
+        } else if (session.active) {
           session.active = false;
+          try {
+            await this.blockchain.endSession(session.id);
+            await this.refresh();
+          } catch (e: any) {
+            this.statusMessage = 'Auto-end failed: ' + e.message;
+          }
         }
       }
       this.cdr.detectChanges();
@@ -100,7 +106,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
     const positionNames = this.positions.map(p => p.name.trim()).filter(n => n);
     const candidates = this.positions.map(p =>
-      p.candidatesText.split(/[\n,]+/).map(c => c.trim()).filter(c => c)
+      [...p.candidatesText.split(/\n+/).map(c => c.trim()).filter(c => c), 'No Vote']
     );
     if (positionNames.length === 0) {
       this.statusMessage = 'Please add at least one position.';
@@ -108,7 +114,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
     for (let i = 0; i < candidates.length; i++) {
       if (candidates[i].length < 2) {
-        this.statusMessage = `"${positionNames[i]}" needs at least 2 candidates.`;
+        this.statusMessage = `"${positionNames[i]}" needs at least 1 candidate.`;
         return;
       }
     }
@@ -169,7 +175,7 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   async issueTokenBulk() {
     const addresses = this.bulkAddresses
-      .split(/[\n,]+/).map(a => a.trim()).filter(a => a.length > 0);
+      .split(/\n+/).map(a => a.trim()).filter(a => a.length > 0);
     if (addresses.length === 0) return;
     try {
       this.isLoading = true;
@@ -195,8 +201,13 @@ export class AdminComponent implements OnInit, OnDestroy {
   }
 
   getWinner(candidates: string[], counts: number[]): string {
-    if (!counts.length || Math.max(...counts) === 0) return 'No votes';
-    return candidates[counts.indexOf(Math.max(...counts))];
+    // ✅ exclude No Vote from winner calculation
+    const filtered = candidates
+      .map((c, i) => ({ c, count: counts[i] }))
+      .filter(x => x.c !== 'No Vote');
+    if (!filtered.length || Math.max(...filtered.map(x => x.count)) === 0) return 'No votes';
+    const winner = filtered.reduce((a, b) => a.count >= b.count ? a : b);
+    return winner.c;
   }
 
   formatTime(seconds: number): string {

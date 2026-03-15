@@ -120,38 +120,39 @@ export class BlockchainService {
   }
 
   async getSessionHistory(): Promise<SessionHistoryItem[]> {
-  const count = Number(await this.votingContract['getSessionHistoryCount']());
-  console.log('history count from contract:', count);
-  const results: SessionHistoryItem[] = [];
+    const count = Number(await this.votingContract['getSessionHistoryCount']());
+    const results: SessionHistoryItem[] = [];
 
-  for (let i = 0; i < count; i++) {
-    const [sessionId, sessionName, endedAt, positionNames] =
-      await this.votingContract['getSessionHistory'](i);
-    console.log(`history[${i}]:`, { sessionId, sessionName, endedAt, positionNames });
+    for (let i = 0; i < count; i++) {
+      const [sessionId, sessionName, endedAt, positionNames] =
+        await this.votingContract['getSessionHistory'](i);
 
-    const positions: PositionResult[] = [];
-    for (let j = 0; j < positionNames.length; j++) {
-      const [positionName, candidates, counts] =
-        await this.votingContract['getHistoryPositionResults'](i, j);
-      console.log(`history[${i}] position[${j}]:`, { positionName, candidates, counts });
-      positions.push({
-        positionName,
-        candidates: [...candidates],
-        counts: counts.map((c: any) => Number(c))
+      const positions: PositionResult[] = [];
+      for (let j = 0; j < positionNames.length; j++) {
+        const [positionName, candidates, counts] =
+          await this.votingContract['getHistoryPositionResults'](i, j);
+
+        const filtered = (candidates as string[])
+          .map((c: string, idx: number) => ({ c, count: Number(counts[idx]) }))
+          .filter(x => x.c !== 'No Vote');
+
+        positions.push({
+          positionName,
+          candidates: filtered.map(x => x.c),
+          counts: filtered.map(x => x.count)
+        });
+      }
+
+      results.push({
+        sessionId: Number(sessionId),
+        sessionName,
+        endedAt: new Date(Number(endedAt) * 1000),
+        positions
       });
     }
 
-    results.push({
-      sessionId: Number(sessionId),
-      sessionName,
-      endedAt: new Date(Number(endedAt) * 1000),
-      positions
-    });
+    return results.reverse();
   }
-
-  console.log('final results before reverse:', results);
-  return results.reverse();
-}
 
   async issueToken(voterAddress: string): Promise<void> {
     const tx = await this.tokenContract['issueToken'](voterAddress);
