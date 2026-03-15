@@ -1,27 +1,25 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { BlockchainService, SessionResult } from '../../services/blockchain';
+import { BlockchainService, ActiveSession, SessionHistoryItem } from '../../services/blockchain';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-voting',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './voting.html',
   styleUrls: ['./voting.css']
 })
 export class VotingComponent implements OnInit, OnDestroy {
   walletAddress = '';
-  candidates: string[] = [];
-  voteCounts: { name: string; count: number }[] = [];
-  hasVoted = false;
   hasToken = false;
   isLoading = false;
   statusMessage = '';
   isConnected = false;
-  sessionActive = false;
-  timeRemaining = 0;
-  sessionHistory: SessionResult[] = [];
+  activeSessions: ActiveSession[] = [];
+  sessionHistory: SessionHistoryItem[] = [];
   currentHistoryIndex = 0;
+  selections: { [sessionId: number]: { [position: string]: string } } = {};
 
   private timerInterval: any;
 
@@ -44,16 +42,73 @@ export class VotingComponent implements OnInit, OnDestroy {
       this.walletAddress = await this.blockchain.connectWallet();
       this.isConnected = true;
       this.hasToken = await this.blockchain.checkTokenBalance();
-      this.hasVoted = await this.blockchain.hasVoted();
-      this.sessionActive = await this.blockchain.getSessionActive();
-      this.candidates = await this.blockchain.getCandidates();
-      this.voteCounts = await this.blockchain.getVoteCounts();
+      this.activeSessions = await this.blockchain.getActiveSessions();
       this.sessionHistory = await this.blockchain.getSessionHistory();
-      if (this.sessionActive) {
-        this.timeRemaining = await this.blockchain.getTimeRemaining();
-        this.startTimer();
-      }
+      this.currentHistoryIndex = 0;
+      this.initSelections();
+      this.startTimer();
       this.statusMessage = '';
+    } catch (err: any) {
+      this.statusMessage = err.message;
+    } finally {
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }
+
+    this.activeSessions = await this.blockchain.getActiveSessions();
+console.log('activeSessions:', JSON.stringify(this.activeSessions));
+
+this.sessionHistory = await this.blockchain.getSessionHistory();
+console.log('sessionHistory:', JSON.stringify(this.sessionHistory));
+console.log('sessionHistory length:', this.sessionHistory.length);
+  }
+
+  initSelections() {
+    for (const session of this.activeSessions) {
+      if (!this.selections[session.id]) {
+        this.selections[session.id] = {};
+      }
+    }
+  }
+
+  startTimer() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.timerInterval = setInterval(async () => {
+      let anyExpired = false;
+      for (const session of this.activeSessions) {
+        if (session.timeRemaining > 0) {
+          session.timeRemaining--;
+        } else if (session.active) {
+          session.active = false;
+          anyExpired = true;
+        }
+      }
+      if (anyExpired) {
+        this.sessionHistory = await this.blockchain.getSessionHistory();
+        this.currentHistoryIndex = 0;
+      }
+      this.cdr.detectChanges();
+    }, 1000);
+  }
+
+  allPositionsSelected(session: ActiveSession): boolean {
+    const sel = this.selections[session.id] || {};
+    return session.positions.every(p => !!sel[p.name]);
+  }
+
+  async vote(session: ActiveSession) {
+    const sel = this.selections[session.id] || {};
+    const positions = session.positions.map(p => p.name);
+    const candidates = positions.map(p => sel[p]);
+    try {
+      this.isLoading = true;
+      this.statusMessage = `Voting in "${session.name}"... confirm in MetaMask`;
+      this.cdr.detectChanges();
+      await this.blockchain.approveAndVote(session.id, positions, candidates);
+      session.hasVoted = true;
+      this.activeSessions = await this.blockchain.getActiveSessions();
+      this.initSelections();
+      this.statusMessage = `Vote cast successfully in "${session.name}"!`;
     } catch (err: any) {
       this.statusMessage = err.message;
     } finally {
@@ -62,39 +117,14 @@ export class VotingComponent implements OnInit, OnDestroy {
     }
   }
 
-  startTimer() {
-  if (this.timerInterval) clearInterval(this.timerInterval);
-  this.timerInterval = setInterval(async () => {
-    if (this.timeRemaining > 0) {
-      this.timeRemaining--;
-      this.cdr.detectChanges();
-    } else {
-      clearInterval(this.timerInterval);
-      this.sessionActive = false;
-      this.statusMessage = 'Voting session has ended. See results below.';
-      this.voteCounts = await this.blockchain.getVoteCounts();
-      this.sessionHistory = await this.blockchain.getSessionHistory();
-      this.currentHistoryIndex = 0;
-      this.cdr.detectChanges();
-    }
-  }, 1000);
-}
+  getBarWidth(count: number, counts: number[]): number {
+    const max = Math.max(...counts, 1);
+    return Math.round((count / max) * 100);
+  }
 
-  async vote(candidate: string) {
-    try {
-      this.isLoading = true;
-      this.statusMessage = 'Approving token... please confirm in MetaMask';
-      this.cdr.detectChanges();
-      await this.blockchain.approveAndVote(candidate);
-      this.statusMessage = 'Vote cast successfully!';
-      this.hasVoted = true;
-      this.voteCounts = await this.blockchain.getVoteCounts();
-    } catch (err: any) {
-      this.statusMessage = err.message;
-    } finally {
-      this.isLoading = false;
-      this.cdr.detectChanges();
-    }
+  getWinner(candidates: string[], counts: number[]): string {
+    if (!counts.length || Math.max(...counts) === 0) return 'No votes';
+    return candidates[counts.indexOf(Math.max(...counts))];
   }
 
   formatTime(seconds: number): string {
@@ -113,24 +143,7 @@ export class VotingComponent implements OnInit, OnDestroy {
       this.currentHistoryIndex--;
   }
 
-  get currentSession(): SessionResult | null {
+  get currentSession(): SessionHistoryItem | null {
     return this.sessionHistory[this.currentHistoryIndex] ?? null;
   }
-
-  getWinner(session: SessionResult): string {
-    if (!session.counts.length) return 'No votes';
-    const max = Math.max(...session.counts);
-    const idx = session.counts.indexOf(max);
-    return session.candidates[idx];
-  }
-
-  getBarWidth(count: number): number {
-  const max = Math.max(...this.voteCounts.map(v => v.count), 1);
-  return Math.round((count / max) * 100);
-}
-
-getHistoryBarWidth(session: SessionResult, index: number): number {
-  const max = Math.max(...session.counts, 1);
-  return Math.round((session.counts[index] / max) * 100);
-}
 }

@@ -2,7 +2,6 @@
   <h1>Admin Panel</h1>
   <p class="subtitle">Decentralized Voting — Owner Controls</p>
 
-  <!-- Connect -->
   <div *ngIf="!isConnected">
     <button class="btn" (click)="connect()" [disabled]="isLoading">
       {{ isLoading ? 'Connecting...' : 'Connect MetaMask' }}
@@ -10,17 +9,14 @@
     <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
   </div>
 
-  <!-- Not owner -->
   <div *ngIf="isConnected && !isOwner" class="not-owner">
     <p>⛔ Connected as <span class="address">{{ walletAddress }}</span></p>
     <p>This wallet is not the contract owner. Admin access denied.</p>
   </div>
 
-  <!-- Admin dashboard -->
   <div *ngIf="isConnected && isOwner">
     <p class="connected-info">✅ Owner: <span class="address">{{ walletAddress }}</span></p>
 
-    <!-- Status -->
     <div *ngIf="statusMessage" class="status">{{ statusMessage }}</div>
 
     <!-- Issue Tokens -->
@@ -37,98 +33,120 @@
         <label>Bulk addresses (one per line or comma-separated)</label>
         <textarea [(ngModel)]="bulkAddresses"
           placeholder="0xAAA...&#10;0xBBB...&#10;0xCCC..."
-          class="textarea" rows="4">
-        </textarea>
+          class="textarea" rows="4"></textarea>
         <button class="btn" (click)="issueTokenBulk()" [disabled]="isLoading || !bulkAddresses">
           Issue Bulk Tokens
         </button>
       </div>
     </div>
 
-    <!-- Voting Session -->
+    <!-- Create Session -->
     <div class="card">
-      <h2>Voting Session</h2>
-
-      <!-- Active session -->
-      <div *ngIf="sessionActive" class="session-active">
-        <p class="timer">⏱ Time Remaining: <strong>{{ formatTime(timeRemaining) }}</strong></p>
-        <div class="live-results">
-          <h3>Live Results</h3>
-          <div *ngFor="let r of voteCounts" class="result-row">
-            <span class="result-name">{{ r.name }}</span>
-            <div class="result-bar-wrap">
-              <div class="result-bar" [style.width.%]="getBarWidth(r.count)"></div>
-            </div>
-            <span class="result-count">{{ r.count }} vote(s)</span>
-          </div>
-        </div>
-        <button class="btn btn-danger" (click)="endSession()" [disabled]="isLoading">
-          End Session Early
-        </button>
+      <h2>Create Voting Session</h2>
+      <div class="field-group">
+        <label>Session Name</label>
+        <input type="text" [(ngModel)]="newSessionName"
+          placeholder="e.g. Student Council 2025" class="input" />
       </div>
-
-      <!-- No active session -->
-      <div *ngIf="!sessionActive">
+      <div class="field-group">
+        <label>Duration (minutes)</label>
+        <input type="number" [(ngModel)]="newSessionDuration"
+          min="1" max="1440" class="input input-sm" />
+      </div>
+      <div class="positions-header">
+        <label>Positions & Candidates</label>
+        <button class="btn-add" (click)="addPosition()">+ Add Position</button>
+      </div>
+      <div *ngFor="let pos of positions; let i = index" class="position-input-block">
+        <div class="position-input-header">
+          <span class="position-num">Position {{ i + 1 }}</span>
+          <button class="btn-remove" (click)="removePosition(i)"
+            *ngIf="positions.length > 1">✕</button>
+        </div>
+        <div class="field-group">
+          <label>Position Name</label>
+          <input type="text" [(ngModel)]="pos.name"
+            placeholder="e.g. President" class="input" />
+        </div>
         <div class="field-group">
           <label>Candidates (one per line or comma-separated)</label>
-          <textarea [(ngModel)]="candidatesInput"
+          <textarea [(ngModel)]="pos.candidatesText"
             placeholder="Alice&#10;Bob&#10;Carol"
-            class="textarea" rows="4">
-          </textarea>
+            class="textarea" rows="3"></textarea>
         </div>
-        <div class="field-group">
-          <label>Duration (minutes)</label>
-          <input type="number" [(ngModel)]="durationMinutes"
-            min="1" max="1440" class="input input-sm" />
+      </div>
+      <button class="btn btn-start" (click)="createSession()"
+        [disabled]="isLoading || !newSessionName">
+        Create Session
+      </button>
+    </div>
+
+    <!-- Active Sessions -->
+    <div *ngIf="activeSessions.length > 0">
+      <h2 class="section-title">Active Sessions</h2>
+      <div *ngFor="let session of activeSessions" class="session-manage-card">
+        <div class="session-manage-header">
+          <div>
+            <span class="session-name">{{ session.name }}</span>
+            <span class="session-id">ID: {{ session.id }}</span>
+          </div>
+          <div class="session-manage-right">
+            <span *ngIf="session.active" class="timer-badge">
+              ⏱ {{ formatTime(session.timeRemaining) }}
+            </span>
+            <span *ngIf="!session.active" class="ended-badge">Ended</span>
+            <button class="btn btn-danger-sm"
+              (click)="endSession(session.id, session.name)"
+              [disabled]="isLoading || !session.active">
+              End Session
+            </button>
+          </div>
         </div>
-        <button class="btn btn-start" (click)="startSession()"
-          [disabled]="isLoading || !candidatesInput">
-          Start Voting Session
-        </button>
+        <div *ngFor="let position of session.positions" class="position-results">
+          <h4 class="position-label">{{ position.name }}</h4>
+          <div *ngFor="let candidate of position.candidates; let i = index" class="result-row">
+            <span class="result-name">{{ candidate }}</span>
+            <div class="result-bar-wrap">
+              <div class="result-bar"
+                [style.width.%]="getBarWidth(position.voteCounts[i], position.voteCounts)">
+              </div>
+            </div>
+            <span class="result-count">{{ position.voteCounts[i] }} vote(s)</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Final Results (session ended) -->
-    <div *ngIf="!sessionActive && voteCounts.length > 0" class="card">
-      <h2>Final Results</h2>
-      <p class="session-ended">⏰ Voting session has ended</p>
-      <div *ngFor="let r of voteCounts" class="result-row">
-        <span class="result-name">{{ r.name }}</span>
-        <div class="result-bar-wrap">
-          <div class="result-bar" [style.width.%]="getBarWidth(r.count)"></div>
-        </div>
-        <span class="result-count">{{ r.count }} vote(s)</span>
-      </div>
-    </div>
-
-    <!-- Session History Carousel -->
+    <!-- Past Session Results Carousel -->
     <div *ngIf="sessionHistory.length > 0" class="history-section">
       <h2>Past Session Results</h2>
       <div class="carousel">
         <button class="arrow" (click)="prevHistory()"
           [disabled]="currentHistoryIndex >= sessionHistory.length - 1">&#8592;</button>
-
         <div class="history-card" *ngIf="currentSession">
           <div class="history-header">
-            <span class="session-label">Session #{{ currentSession.sessionId }}</span>
+            <span class="session-label">{{ currentSession.sessionName }}</span>
             <span class="session-date">{{ currentSession.endedAt | date:'medium' }}</span>
           </div>
-          <div class="history-winner">🏆 Winner: <strong>{{ getWinner(currentSession) }}</strong></div>
-          <div class="history-results">
-            <div *ngFor="let c of currentSession.candidates; let i = index" class="result-row">
+          <div *ngFor="let pos of currentSession.positions" class="history-position">
+            <h4 class="history-position-title">{{ pos.positionName }}</h4>
+            <div class="history-winner">
+              🏆 {{ getWinner(pos.candidates, pos.counts) }}
+            </div>
+            <div *ngFor="let c of pos.candidates; let i = index" class="result-row">
               <span class="result-name">{{ c }}</span>
               <div class="result-bar-wrap">
                 <div class="result-bar"
-                  [style.width.%]="getHistoryBarWidth(currentSession, i)"></div>
+                  [style.width.%]="getBarWidth(pos.counts[i], pos.counts)">
+                </div>
               </div>
-              <span class="result-count">{{ currentSession.counts[i] }} vote(s)</span>
+              <span class="result-count">{{ pos.counts[i] }} vote(s)</span>
             </div>
           </div>
           <div class="carousel-indicator">
             {{ currentHistoryIndex + 1 }} / {{ sessionHistory.length }}
           </div>
         </div>
-
         <button class="arrow" (click)="nextHistory()"
           [disabled]="currentHistoryIndex <= 0">&#8594;</button>
       </div>

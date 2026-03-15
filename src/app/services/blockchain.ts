@@ -2,11 +2,33 @@ import { Injectable } from '@angular/core';
 import { ethers } from 'ethers';
 import { environment } from '../../environments/environment';
 
-export interface SessionResult {
-  sessionId: number;
+export interface PositionResult {
+  positionName: string;
   candidates: string[];
   counts: number[];
+}
+
+export interface PositionData {
+  name: string;
+  candidates: string[];
+  voteCounts: number[];
+}
+
+export interface ActiveSession {
+  id: number;
+  name: string;
+  endTime: number;
+  active: boolean;
+  positions: PositionData[];
+  hasVoted: boolean;
+  timeRemaining: number;
+}
+
+export interface SessionHistoryItem {
+  sessionId: number;
+  sessionName: string;
   endedAt: Date;
+  positions: PositionResult[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -47,71 +69,109 @@ export class BlockchainService {
     return balance >= ethers.parseEther('1');
   }
 
-  async hasVoted(): Promise<boolean> {
+  async getActiveSessions(): Promise<ActiveSession[]> {
     const address = await this.signer.getAddress();
-    const lastVotedSession = await this.votingContract['lastVotedSession'](address);
-    const currentSessionId = await this.votingContract['currentSessionId']();
-    return Number(lastVotedSession) === Number(currentSessionId);
+    const ids: bigint[] = await this.votingContract['getActiveSessions']();
+    const sessions: ActiveSession[] = [];
+
+    for (const id of ids) {
+      const [name, endTime, active, positionNames] =
+        await this.votingContract['getSessionInfo'](id);
+
+      const positions: PositionData[] = [];
+      for (const posName of positionNames) {
+        const candidates: string[] = await this.votingContract['getPositionCandidates'](id, posName);
+        const voteCounts = await Promise.all(
+          candidates.map((c: string) =>
+            this.votingContract['getVoteCount'](id, posName, c).then(Number)
+          )
+        );
+        positions.push({ name: posName, candidates, voteCounts });
+      }
+
+      const hasVoted = await this.votingContract['hasVoted'](id, address);
+      const timeRemaining = Number(await this.votingContract['getTimeRemaining'](id));
+
+      sessions.push({
+        id: Number(id),
+        name,
+        endTime: Number(endTime),
+        active,
+        positions,
+        hasVoted,
+        timeRemaining
+      });
+    }
+
+    return sessions;
   }
 
-  async getCandidates(): Promise<string[]> {
-    return await this.votingContract['getCandidates']();
-  }
-
-  async getSessionActive(): Promise<boolean> {
-    return await this.votingContract['sessionActive']();
-  }
-
-  async getTimeRemaining(): Promise<number> {
-    const t = await this.votingContract['getTimeRemaining']();
-    return Number(t);
-  }
-
-  async approveAndVote(candidate: string): Promise<void> {
+  async approveAndVote(
+    sessionId: number,
+    positions: string[],
+    candidates: string[]
+  ): Promise<void> {
     const approveTx = await this.tokenContract['approve'](
       environment.votingAddress, ethers.parseEther('1')
     );
     await approveTx.wait();
-    const voteTx = await this.votingContract['vote'](candidate);
+    const voteTx = await this.votingContract['vote'](sessionId, positions, candidates);
     await voteTx.wait();
   }
 
-  async getVoteCounts(): Promise<{ name: string; count: number }[]> {
-    const candidates = await this.getCandidates();
-    return Promise.all(candidates.map(async name => {
-      const count = await this.votingContract['getVoteCount'](name);
-      return { name, count: Number(count) };
-    }));
-  }
+  async getSessionHistory(): Promise<SessionHistoryItem[]> {
+  const count = Number(await this.votingContract['getSessionHistoryCount']());
+  console.log('history count from contract:', count);
+  const results: SessionHistoryItem[] = [];
 
-  async getSessionHistory(): Promise<SessionResult[]> {
-    const count = Number(await this.votingContract['getSessionHistoryCount']());
-    const results: SessionResult[] = [];
-    for (let i = 0; i < count; i++) {
-      const [sessionId, candidates, counts, endedAt] =
-        await this.votingContract['getSessionHistory'](i);
-      results.push({
-        sessionId: Number(sessionId),
+  for (let i = 0; i < count; i++) {
+    const [sessionId, sessionName, endedAt, positionNames] =
+      await this.votingContract['getSessionHistory'](i);
+    console.log(`history[${i}]:`, { sessionId, sessionName, endedAt, positionNames });
+
+    const positions: PositionResult[] = [];
+    for (let j = 0; j < positionNames.length; j++) {
+      const [positionName, candidates, counts] =
+        await this.votingContract['getHistoryPositionResults'](i, j);
+      console.log(`history[${i}] position[${j}]:`, { positionName, candidates, counts });
+      positions.push({
+        positionName,
         candidates: [...candidates],
-        counts: counts.map((c: any) => Number(c)),
-        endedAt: new Date(Number(endedAt) * 1000)
+        counts: counts.map((c: any) => Number(c))
       });
     }
-    return results.reverse(); // most recent first
+
+    results.push({
+      sessionId: Number(sessionId),
+      sessionName,
+      endedAt: new Date(Number(endedAt) * 1000),
+      positions
+    });
   }
+
+  console.log('final results before reverse:', results);
+  return results.reverse();
+}
 
   async issueToken(voterAddress: string): Promise<void> {
     const tx = await this.tokenContract['issueToken'](voterAddress);
     await tx.wait();
   }
 
-  async startSession(candidates: string[], durationSeconds: number): Promise<void> {
-    const tx = await this.votingContract['startSession'](candidates, durationSeconds);
+  async createSession(
+    name: string,
+    positionNames: string[],
+    candidates: string[][],
+    durationSeconds: number
+  ): Promise<void> {
+    const tx = await this.votingContract['createSession'](
+      name, positionNames, candidates, durationSeconds
+    );
     await tx.wait();
   }
 
-  async endSession(): Promise<void> {
-    const tx = await this.votingContract['endSession']();
+  async endSession(sessionId: number): Promise<void> {
+    const tx = await this.votingContract['endSession'](sessionId);
     await tx.wait();
   }
 }
